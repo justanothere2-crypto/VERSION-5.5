@@ -212,15 +212,6 @@ def verify_code():
     else:
         return jsonify({"success": False, "error": error})
 
-               print(f"[CODE SENT] to {phone}")
-               await bot_client.send_message(user_id, "✅ Code sent! Check your Telegram and enter it in the Mini App.")
-               await client.disconnect()
-            except Exception as e:
-               print(f"[ERROR] {e}")
-               await client.disconnect()
-
-    await bot_client.run_until_disconnected()
-
 if name == 'main':
     init_db()
     
