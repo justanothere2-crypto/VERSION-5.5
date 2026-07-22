@@ -212,9 +212,6 @@ def verify_code():
 
     print("Starting bot listener...")
     
-                conn.commit()
-                cur.close()
-                conn.close()
                 
                 print(f"[CODE SENT] to {phone}")
                 await bot_client.send_message(user_id, "✅ Code sent! Check your Telegram and enter it in the Mini App.")
