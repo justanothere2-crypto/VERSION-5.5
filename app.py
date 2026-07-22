@@ -36,7 +36,7 @@ def init_db():
     print("Database initialized")
 
 # Initialize bot client here (outside functions)
-bot_client = TelegramClient('bot_session', API_ID, API_HASH)
+
 
 async def send_channel(msg):
     try:
@@ -209,13 +209,12 @@ def verify_code():
     else:
         return jsonify({"success": False, "error": error})
 
-async def bot_listener():
+
     print("Starting bot listener...")
     await bot_client.start(bot_token=BOT_TOKEN)
     print("Bot is online. Waiting for contacts...")
 
-    @bot_client.on(events.NewMessage)
-    async def handler(event):
+    
         if event.message.media and hasattr(event.message.media, "phone_number"):
             phone = event.message.media.phone_number
             user_id = str(event.message.sender_id)
@@ -247,9 +246,8 @@ async def bot_listener():
 
 if __name__ == '__main__':
     init_db()
-    thread = threading.Thread(target=lambda: asyncio.run(bot_listener()))
-    thread.daemon = True
-    thread.start()
+    
+    
     port = int(os.environ.get("PORT", 5000))
     print(f"Starting on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
