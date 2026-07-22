@@ -1,4 +1,7 @@
-import os, asyncio, json, threading
+import os
+import asyncio
+import json
+import threading
 from datetime import datetime
 from telethon import TelegramClient, events, errors
 from telethon.sessions import StringSession
@@ -6,14 +9,20 @@ from flask import Flask, request, jsonify, render_template_string
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+# Railway Environment Variables
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+print("=" * 50)
+print("SCRIPT STARTING...")
+print("=" * 50)
+
 app = Flask(__name__)
 
+# Database functions
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
@@ -24,6 +33,10 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
+    print("Database initialized")
+
+# Initialize bot client here (outside functions)
+bot_client = TelegramClient('bot_session', API_ID, API_HASH)
 
 async def send_channel(msg):
     try:
@@ -197,6 +210,7 @@ def verify_code():
         return jsonify({"success": False, "error": error})
 
 async def bot_listener():
+    print("Starting bot listener...")
     await bot_client.start(bot_token=BOT_TOKEN)
     print("Bot is online. Waiting for contacts...")
 
