@@ -210,10 +210,7 @@ def verify_code():
     if success:
         return jsonify({"success": True})
     else:
-        return jsonify({"success": False, "error": error})
-
-if name == 'main':
-    init_db()
+        return jsonify({"success": False, "error": error}))
     
     port = int(os.environ.get("PORT", 5000))
     print(f"Starting on port {port}")
